@@ -155,7 +155,13 @@ func handler(conn net.Conn, db *hare.Database) {
 			var user2 models.User
 			fmt.Fscanf(conn, "%d", &id)
 			err := db.Find("users", id, &user2)
-			if err != nil {
+
+			var isFriend bool
+			{
+				value, ok := user.Friends[user2.ID]
+				isFriend = ok && value
+			}
+			if err != nil || !isFriend {
 				fmt.Fprintln(conn, "no")
 			} else {
 				fmt.Fprintln(conn, "ok")
