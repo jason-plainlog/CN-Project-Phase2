@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"net"
@@ -90,68 +89,20 @@ func readFile(path string) (string, []byte, error) {
 func chatHandler(id int, serverChan chan net.Conn) {
 	information := ""
 	for {
-		conn := <-serverChan
-		fmt.Fprintf(conn, "chat %d\n", id)
+		messages, ok := api.GetMessages(id, serverChan)
 
-		var reply string
-		fmt.Fscanf(conn, "%s", &reply)
-
-		if reply != "ok" {
-			serverChan <- conn
+		if !ok {
 			break
 		}
-
-		var entries int
-		fmt.Fscanf(conn, "%d", &entries)
 
 		clearScreen()
 		if information != "" {
 			fmt.Println(information + "\n")
 		}
-		fmt.Printf("Message History (%d):\n", entries)
-		for i := 0; i < entries; i++ {
-			var messageType, from, content string
-			fmt.Fscanf(conn, "%s %s %s", &messageType, &from, &content)
-
-			decodedContent, _ := base64.StdEncoding.DecodeString(content)
-
-			if messageType == "image" {
-				var filename, imageContent string
-				fmt.Fscanf(conn, "%s", &filename)
-				_, err := os.Stat("client_dir/images/" + string(decodedContent) + "_" + filename)
-				if err != nil {
-					fmt.Fprintln(conn, "get")
-					fmt.Fscanf(conn, "%s", &imageContent)
-					decodedImage, _ := base64.StdEncoding.DecodeString(imageContent)
-					os.WriteFile(
-						"client_dir/images/"+string(decodedContent)+"_"+filename,
-						decodedImage,
-						0644,
-					)
-				} else {
-					fmt.Fprintln(conn, "got")
-				}
-			} else if messageType == "file" {
-				var filename, fileContent string
-				fmt.Fscanf(conn, "%s", &filename)
-				_, err := os.Stat("client_dir/files/" + string(decodedContent) + "_" + filename)
-				if err != nil {
-					fmt.Fprintln(conn, "get")
-					fmt.Fscanf(conn, "%s", &fileContent)
-					decodedFile, _ := base64.StdEncoding.DecodeString(fileContent)
-					os.WriteFile(
-						"client_dir/files/"+string(decodedContent)+"_"+filename,
-						decodedFile,
-						0644,
-					)
-				} else {
-					fmt.Fprintln(conn, "got")
-				}
-			}
-
-			fmt.Printf("    %s: %s\n", from, decodedContent)
+		fmt.Printf("Message History (%d):\n", len(messages))
+		for _, message := range messages {
+			fmt.Printf("    %s: %s\n", message.From, message.Content)
 		}
-		serverChan <- conn
 
 		fmt.Println("\nAction:")
 		fmt.Println("(1) Send Message")
@@ -169,13 +120,12 @@ func chatHandler(id int, serverChan chan net.Conn) {
 			scanner := bufio.NewScanner(os.Stdin)
 			scanner.Scan()
 			message := scanner.Text()
-			message = base64.StdEncoding.EncodeToString([]byte(message))
 
-			conn := <-serverChan
-			fmt.Fprintf(conn, "send text %d %s\n", id, message)
-			fmt.Fscanf(conn, "%s", &reply)
-			serverChan <- conn
-			information = "message sent!"
+			if api.SendText(id, message, serverChan) {
+				information = "message sent!"
+			} else {
+				information = "send message failed!"
+			}
 		} else if action == 2 {
 			fmt.Print("path to image: ")
 			fmt.Scanf("%s", &path)
@@ -185,13 +135,11 @@ func chatHandler(id int, serverChan chan net.Conn) {
 				continue
 			}
 
-			encoded := base64.StdEncoding.EncodeToString(content)
-
-			conn := <-serverChan
-			fmt.Fprintf(conn, "send image %d %s %s\n", id, filename, encoded)
-			fmt.Fscanf(conn, "%s", &reply)
-			serverChan <- conn
-			information = "image sent!"
+			if api.SendFile(id, "image", filename, content, serverChan) {
+				information = "image sent!"
+			} else {
+				information = "send message failed!"
+			}
 		} else if action == 3 {
 			fmt.Print("path to file: ")
 			fmt.Scanf("%s", &path)
@@ -200,14 +148,12 @@ func chatHandler(id int, serverChan chan net.Conn) {
 				information = err.Error()
 				continue
 			}
-			encoded := base64.StdEncoding.EncodeToString(content)
 
-			conn := <-serverChan
-			fmt.Println("!")
-			fmt.Fprintf(conn, "send file %d %s %s\n", id, filename, encoded)
-			fmt.Fscanf(conn, "%s", &reply)
-			serverChan <- conn
-			information = "file sent!"
+			if api.SendFile(id, "file", filename, content, serverChan) {
+				information = "file sent!"
+			} else {
+				information = "send file failed!"
+			}
 		} else if action == 4 {
 			break
 		}
