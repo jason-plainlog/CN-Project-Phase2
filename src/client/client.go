@@ -8,6 +8,8 @@ import (
 	"net"
 	"os"
 	"strings"
+
+	"phase2/src/client/api"
 )
 
 func getArgs() (string, string) {
@@ -53,7 +55,6 @@ func auth(conn net.Conn) {
 				clearScreen()
 				fmt.Println("Invalid username or password, please retry.")
 			}
-
 		} else if action == 2 {
 			fmt.Fprintf(conn, "signup %s %s\n", username, password)
 			fmt.Fscanf(conn, "%s\n", &reply)
@@ -214,9 +215,12 @@ func chatHandler(id int, serverChan chan net.Conn) {
 }
 
 func promptHandler(serverChan chan net.Conn) {
-	var action int
+	var action, id int
+	var username string
 
 	for {
+		action = 0
+
 		fmt.Println("\nHome:")
 		fmt.Println("(1) List all friends")
 		fmt.Println("(2) Add friend")
@@ -227,66 +231,40 @@ func promptHandler(serverChan chan net.Conn) {
 
 		if action == 1 {
 			clearScreen()
-			conn := <-serverChan
-			fmt.Fprintln(conn, "list")
 
-			var entries, id int
-			var username string
-			fmt.Fscanf(conn, "%d", &entries)
-			fmt.Printf("All Friends (%d):\n", entries)
-			for i := 0; i < entries; i++ {
-				fmt.Fscanf(conn, "%d %s", &id, &username)
-				fmt.Printf("    - %s\n", username)
+			friends := api.GetFriends(serverChan)
+			fmt.Printf("All Friends (%d):\n", len(friends))
+			for _, friend := range friends {
+				fmt.Printf("    - %s\n", friend.Username)
 			}
-			serverChan <- conn
 		} else if action == 2 {
-			var username, reply string
 			fmt.Print("username: ")
 			fmt.Scanf("%s", &username)
 
-			conn := <-serverChan
-			fmt.Fprintln(conn, "add", username)
-
-			fmt.Fscanf(conn, "%s", &reply)
 			clearScreen()
-			if reply == "ok" {
+			if api.AddFriend(username, serverChan) {
 				fmt.Println("Successfully added " + username + " as friend")
 			} else {
 				fmt.Println("User " + username + " doesn't exist")
 			}
-
-			serverChan <- conn
 		} else if action == 3 {
-			var username, reply string
 			fmt.Print("username: ")
 			fmt.Scanf("%s", &username)
 
-			conn := <-serverChan
-			fmt.Fprintln(conn, "delete", username)
-
-			fmt.Fscanf(conn, "%s", &reply)
 			clearScreen()
-			if reply == "ok" {
+			if api.DeleteFriend(username, serverChan) {
 				fmt.Println("Successfully delete friend " + username)
 			} else {
 				fmt.Println("Friend " + username + " doen't exist")
 			}
-
-			serverChan <- conn
 		} else if action == 4 {
-			clearScreen()
-			conn := <-serverChan
-			fmt.Fprintln(conn, "list")
+			friends := api.GetFriends(serverChan)
 
-			var entries, id int
-			var username string
-			fmt.Fscanf(conn, "%d", &entries)
-			fmt.Printf("Chatrooms (%d):\n", entries)
-			for i := 0; i < entries; i++ {
-				fmt.Fscanf(conn, "%d %s", &id, &username)
-				fmt.Printf("    [%d] %s\n", id, username)
+			clearScreen()
+			fmt.Printf("Chatrooms (%d):\n", len(friends))
+			for _, friend := range friends {
+				fmt.Printf("    [%d] %s\n", friend.Id, friend.Username)
 			}
-			serverChan <- conn
 
 			fmt.Print("\nenter chatroom [?]: ")
 			fmt.Scanf("%d", &id)
@@ -294,9 +272,9 @@ func promptHandler(serverChan chan net.Conn) {
 			chatHandler(id, serverChan)
 			clearScreen()
 		} else {
+			clearScreen()
 			fmt.Println("Invalid Action")
 		}
-
 	}
 }
 
