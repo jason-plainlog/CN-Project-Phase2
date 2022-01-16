@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CN Project Phase2</title>
+</head>
+
+<body>
+    <a href="/">
+        Back to Home
+    </a>
+
+    <h3>Messages</h3>
+    <ul>
+        {{ range $index, $message := .Messages }}
+        <li>
+            {{ $message.From }}: {{ $message.Content }}
+            {{ if $message.IsImage }}
+            <img width="50" src="{{ $message.Link }}">
+            {{ end }}
+            {{ if $message.IsFile }}
+            <a href="{{ $message.Link }}" target="_blank"> download </a>
+            {{ end }}
+        </li>
+        {{ end }}
+    </ul>
+
+    <h4>Send Message</h4>
+    <form method="post" enctype="multipart/form-data">
+        <input type="text" placeholder="message" name="message">
+        <button name="type" value="text">Send Text</button>
+        <hr>
+        <input type="file" name="image">
+        <button name="type" value="image">Send Image</button>
+        <hr>
+        <input type="file" name="file">
+        <button name="type" value="file">Send File</button>
+    </form>
+
+    <br>
+
+    {{ .Message }}
+</body>
+
+</html>

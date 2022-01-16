@@ -90,6 +90,8 @@ func handler(conn net.Conn, db *hare.Database) {
 
 	var command string
 	for {
+		db.Find("users", user.ID, &user)
+
 		_, err := fmt.Fscanf(conn, "%s", &command)
 		if err != nil {
 			return

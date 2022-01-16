@@ -6,9 +6,12 @@ import (
 	"log"
 	"net"
 	"os"
+	"regexp"
 	"strings"
 
 	"phase2/src/client/api"
+	"phase2/src/client/http"
+	"phase2/src/client/routes"
 )
 
 func getArgs() (string, string) {
@@ -76,6 +79,28 @@ func auth(conn net.Conn) {
 func clientHandler(conn net.Conn, serverChan chan net.Conn) {
 	defer conn.Close()
 
+	get := regexp.MustCompile("^/get")
+	chat := regexp.MustCompile("^/chat")
+	home := regexp.MustCompile("^/")
+
+	for {
+		req, err := http.ParseRequest(conn)
+		if err != nil {
+			break
+		}
+
+		var response http.HttpResponse
+
+		if chat.MatchString(req.Target.Path) {
+			response = routes.Chat(req, serverChan)
+		} else if get.Match([]byte(req.Target.Path)) {
+			response = routes.Get(req, serverChan)
+		} else if home.MatchString(req.Target.Path) {
+			response = routes.Home(req, serverChan)
+		}
+
+		http.SendResponse(response, conn)
+	}
 }
 
 func readFile(path string) (string, []byte, error) {

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CN Project Phase2</title>
+</head>
+
+<body>
+    <h3>Friends</h3>
+    <ul>
+        {{ range $index, $friend := .Friends }}
+        <li>
+            <a href="/chat?id={{ $friend.Id }}">
+                {{ $friend.Username }}
+            </a>
+        </li>
+        {{ end }}
+    </ul>
+
+    <h4>Add / Delete Friend</h4>
+    <form method="post">
+        <input type="text" placeholder="username" name="username">
+        <button name="action" value="add">Add</button>
+        <button name="action" value="delete">Delete</button>
+    </form>
+
+    <br>
+
+    {{ .Message }}
+</body>
+
+</html>
