@@ -3,3 +3,4 @@ server
 client_dir
 server_dir
 !src/*
+example
